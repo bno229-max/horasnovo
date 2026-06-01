@@ -1,0 +1,16 @@
+{
+  "name": "Vamos Aprender as Horas?",
+  "short_name": "Aprender Horas",
+  "description": "Um divertido jogo educativo para ensinar as crianças a lerem as horas.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#764ba2",
+  "icons": [
+    {
+      "src": "icone512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

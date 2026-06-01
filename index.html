@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vamos Aprender as Horas?</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#764ba2">
+    <link rel="apple-touch-icon" href="icone512.jpg">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { font-family: 'Fredoka', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .bg-gradient-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        }
+        .clock-face { touch-action: none; }
+        .hand { transform-origin: bottom center; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .number-node { transform: translate(-50%, -50%); position: absolute; }
+        
+        .glow-effect { transition: all 0.4s ease; box-shadow: 0 0 0px transparent; }
+        .glow-success { box-shadow: 0 0 35px #22c55e; border-color: #22c55e !important; transform: scale(1.05); }
+        .glow-error { box-shadow: 0 0 35px #ef4444; border-color: #ef4444 !important; transform: scale(0.95); }
+
+        @keyframes pulse-orange {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.7); }
+            70% { transform: scale(1.03); box-shadow: 0 0 0 12px rgba(251, 146, 60, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
+        }
+        .animate-pulse-button { animation: pulse-orange 2s infinite; }
+
+        .avatar-size { width: 120px; height: 120px; }
+        .clock-size { width: 280px; height: 280px; }
+
+        @media (max-width: 380px) {
+            .avatar-size { width: 100px; height: 100px; }
+            .clock-size { width: 250px; height: 250px; }
+        }
+
+        @media (max-height: 700px) {
+            .avatar-size { width: 90px; height: 90px; }
+            .clock-size { width: 230px; height: 230px; }
+            h1 { font-size: 1.2rem !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-3 bg-gradient-custom relative">
+
+    <!-- Áudio de fundo -->
+    <audio id="bg-music" loop>
+        <source src="paoloargento-quiz-countdown-194417.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="w-full max-w-md p-6 rounded-[40px] text-center bg-white shadow-2xl relative">
+        
+        <!-- Botão de controle de som -->
+        <button id="btn-sound" onclick="toggleSound()" class="absolute top-5 left-5 text-gray-400 hover:text-purple-500 transition-colors">
+            <i data-lucide="volume-x" id="sound-icon" class="w-6 h-6"></i>
+        </button>
+
+        <h1 class="text-2xl font-black mb-4 whitespace-nowrap overflow-hidden mt-2">
+            <span class="text-blue-500">Vamos</span> 
+            <span class="text-orange-400">Aprender</span>
+            <span class="text-pink-500">as Horas?</span>
+        </h1>
+
+        <div class="mb-5 relative inline-block">
+            <img id="avatar" src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695fbcffde1adc390e805e93/24b729725_Designsemnome3.png" 
+                 class="glow-effect avatar-size mx-auto rounded-full object-cover border-4 border-white shadow-lg" alt="Avatar amigável">
+            
+            <div id="streak-container" class="hidden absolute top-0 -right-3 bg-orange-500 text-white text-xs px-2.5 py-1.5 rounded-full font-bold shadow-lg flex items-center gap-1">
+                <i data-lucide="flame" class="w-4 h-4"></i> <span id="streak-text">0</span>
+            </div>
+        </div>
+
+        <div class="py-3 px-4 rounded-3xl mb-4 bg-purple-50 border-2 border-purple-100">
+            <p class="text-xs font-bold text-purple-400 uppercase tracking-wide mb-1">Coloque o relógio em:</p>
+            <div id="target-time" class="text-4xl font-black text-purple-600 drop-shadow-sm">12:00</div>
+        </div>
+
+        <div class="clock-size mx-auto rounded-full flex items-center justify-center mb-6 bg-gradient-to-br from-orange-300 to-orange-400 shadow-xl p-2.5 relative">
+            <div id="clock-face" class="w-full h-full rounded-full relative bg-white shadow-inner clock-face">
+                <div class="absolute top-1/2 left-1/2 w-5 h-5 bg-slate-700 rounded-full z-50 -translate-x-1/2 -translate-y-1/2 border-2 border-white shadow-md"></div>
+                <!-- Ponteiro de Minutos (Grande) -->
+                <div id="min-hand" class="hand absolute left-1/2 bottom-1/2 w-2 h-[42%] bg-pink-500 rounded-full z-40 -translate-x-1/2 cursor-pointer shadow-md"></div>
+                <!-- Ponteiro de Horas (Pequeno) -->
+                <div id="hour-hand" class="hand absolute left-1/2 bottom-1/2 w-3.5 h-[30%] bg-blue-500 rounded-full z-50 -translate-x-1/2 cursor-pointer shadow-md"></div>
+            </div>
+        </div>
+
+        <!-- Texto de reforço da dica (escondido por padrão) -->
+        <div id="dica-texto" class="hidden mb-4 px-4 py-3 bg-yellow-50 border-2 border-yellow-200 rounded-2xl text-yellow-700 text-xs font-bold shadow-sm">
+            💡 Lembre-se: O ponteiro <span class="text-blue-500 font-black">PEQUENO</span> marca as horas e o <span class="text-pink-500 font-black">GRANDE</span> marca os minutos!
+        </div>
+
+        <div class="flex justify-center gap-4 px-4">
+            <button onclick="checkAnswer()" class="flex-1 py-4 bg-green-500 text-white rounded-2xl font-black shadow-lg active:scale-95 transition-all text-sm uppercase tracking-wide">
+                Verificar
+            </button>
+            <button id="btn-help" onclick="toggleHelper()" class="animate-pulse-button flex-1 py-4 bg-orange-400 text-white rounded-2xl font-black shadow-lg active:scale-95 transition-all text-sm uppercase tracking-wide">
+                Dica
+            </button>
+        </div>
+
+        <div id="feedback" class="mt-4 font-black text-sm min-h-[20px]"></div>
+
+        <div class="mt-5 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Criado por Fabiano Ferreira
+        </div>
+    </div>
+
+    <script>
+        // Registro do Service Worker (Necessário para instalar o app)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registrado com sucesso!', reg.scope))
+                    .catch(err => console.error('Falha ao registrar o Service Worker:', err));
+            });
+        }
+
+        lucide.createIcons();
+        const colors = ['#10b981', '#ef4444', '#ec4899', '#f43f5e', '#06b6d4', '#8b5cf6', '#6366f1', '#eab308', '#f97316', '#22c55e', '#3b82f6', '#a855f7'];
+        const face = document.getElementById('clock-face');
+        const av = document.getElementById('avatar');
+        const bgMusic = document.getElementById('bg-music');
+        const soundIcon = document.getElementById('sound-icon');
+        
+        let hRot = 0, mRot = 0, tH, tM, streak = 0, showHelper = false;
+        let isMusicPlaying = false;
+        let interacted = false; 
+
+        bgMusic.volume = 0.2;
+
+        for (let i = 1; i <= 12; i++) {
+            const rad = (i * 30 - 90) * (Math.PI / 180);
+            
+            const n = document.createElement('div');
+            n.className = 'number-node font-black text-2xl sm:text-3xl drop-shadow-sm';
+            n.innerText = i;
+            n.style.left = (50 + 38 * Math.cos(rad)) + '%';
+            n.style.top = (50 + 38 * Math.sin(rad)) + '%';
+            n.style.color = colors[i % 12];
+            face.appendChild(n);
+
+            const mh = document.createElement('div');
+            mh.className = 'min-node absolute font-black text-xs sm:text-sm text-pink-400 hidden drop-shadow-sm';
+            mh.innerText = (i * 5 === 60 ? '00' : String(i * 5).padStart(2, '0'));
+            mh.style.left = (50 + 23 * Math.cos(rad)) + '%';
+            mh.style.top = (50 + 23 * Math.sin(rad)) + '%';
+            mh.style.transform = 'translate(-50%, -50%)';
+            face.appendChild(mh);
+        }
+
+        function toggleSound() {
+            if (bgMusic.paused) {
+                bgMusic.play();
+                isMusicPlaying = true;
+                soundIcon.setAttribute('data-lucide', 'volume-2');
+            } else {
+                bgMusic.pause();
+                isMusicPlaying = false;
+                soundIcon.setAttribute('data-lucide', 'volume-x');
+            }
+            lucide.createIcons();
+        }
+
+        function startMusicOnInteraction() {
+            if (!interacted && !isMusicPlaying) {
+                interacted = true;
+                bgMusic.play().then(() => {
+                    isMusicPlaying = true;
+                    soundIcon.setAttribute('data-lucide', 'volume-2');
+                    lucide.createIcons();
+                }).catch(e => console.log("Autoplay bloqueado até interação manual."));
+            }
+        }
+
+        function toggleHelper() {
+            showHelper = !showHelper;
+            document.querySelectorAll('.min-node').forEach(el => el.classList.toggle('hidden', !showHelper));
+            document.getElementById('dica-texto').classList.toggle('hidden', !showHelper);
+            document.getElementById('btn-help').classList.toggle('animate-pulse-button', !showHelper);
+        }
+
+        function handleDrag(el, type) {
+            let isDragging = false;
+            const update = (e) => {
+                if (!isDragging) return;
+                const rect = face.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                let deg = Math.atan2(clientY - centerY, clientX - centerX) * 180 / Math.PI + 90;
+                if (deg < 0) deg += 360;
+                const snap = type === 'hour' ? 30 : 6;
+                const snapped = Math.round(deg / snap) * snap;
+                el.style.transform = `translateX(-50%) rotate(${snapped}deg)`;
+                if (type === 'hour') hRot = snapped; else mRot = snapped;
+                av.classList.remove('glow-success', 'glow-error');
+            };
+            
+            el.addEventListener('mousedown', () => { isDragging = true; startMusicOnInteraction(); });
+            el.addEventListener('touchstart', (e) => { isDragging = true; startMusicOnInteraction(); });
+            window.addEventListener('mousemove', update);
+            window.addEventListener('touchmove', update, { passive: false });
+            window.addEventListener('mouseup', () => isDragging = false);
+            window.addEventListener('touchend', () => isDragging = false);
+        }
+
+        handleDrag(document.getElementById('hour-hand'), 'hour');
+        handleDrag(document.getElementById('min-hand'), 'min');
+
+        function checkAnswer() {
+            startMusicOnInteraction();
+            const curH = (Math.round(hRot / 30) % 12) || 12;
+            const curM = (Math.round(mRot / 6) % 60);
+            const fb = document.getElementById('feedback');
+
+            if (curH === tH && curM === tM) {
+                streak++;
+                fb.innerText = "🌟 VOCÊ CONSEGUIU!";
+                fb.className = "mt-4 font-black text-sm text-green-500 uppercase tracking-widest";
+                av.src = "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695fbcffde1adc390e805e93/24b729725_Designsemnome3.png";
+                av.classList.add('glow-success');
+                confetti({ particleCount: 150, spread: 60, origin: { y: 0.8 } });
+                updateStreak();
+                setTimeout(nextQuestion, 2000);
+            } else {
+                streak = 0;
+                fb.innerText = "💪 TENTE MAIS UMA VEZ!";
+                fb.className = "mt-4 font-black text-sm text-pink-500 uppercase tracking-widest";
+                av.src = "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/695fbcffde1adc390e805e93/84f917126_Designsemnome4.png";
+                av.classList.add('glow-error');
+                updateStreak();
+            }
+        }
+
+        function updateStreak() {
+            const container = document.getElementById('streak-container');
+            document.getElementById('streak-text').innerText = streak;
+            container.classList.toggle('hidden', streak === 0);
+        }
+
+        function nextQuestion() {
+            tH = Math.floor(Math.random() * 12) || 12;
+            tM = [0, 15, 30, 45, 10, 20, 40, 50][Math.floor(Math.random() * 8)];
+            document.getElementById('target-time').innerText = `${String(tH).padStart(2, '0')}:${String(tM).padStart(2, '0')}`;
+            document.getElementById('feedback').innerText = "";
+            av.classList.remove('glow-success', 'glow-error');
+        }
+        nextQuestion();
+    </script>
+</body>
+</html>
